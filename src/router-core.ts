@@ -6,7 +6,7 @@ export interface Candidate {
 }
 
 export interface Judgment {
-	source: "jev-1.13-free" | "heuristic";
+	source: string;
 	kind: string;
 	complexity: string;
 	deepReasoning: boolean;
@@ -174,6 +174,7 @@ export function mapJevAnswers(
 	complexity: string,
 	deepReasoning: boolean,
 	manualFloor: Thinking,
+	source = "jev-1.13-free",
 ): Judgment {
 	let target: Thinking = "medium";
 	if (complexity === "trivial" && (kind === "chat" || kind === "explain")) target = "low";
@@ -189,5 +190,59 @@ export function mapJevAnswers(
 		target = "low";
 	}
 	const thinking = THINK_RANK[manualFloor] > THINK_RANK[target] ? manualFloor : target;
-	return { source: "jev-1.13-free", kind, complexity, deepReasoning, thinking };
+	return { source, kind, complexity, deepReasoning, thinking };
+}
+
+export interface ChatModelLike {
+	provider: string;
+	id: string;
+	reasoning?: boolean;
+	cost?: { input?: number };
+}
+
+/**
+ * Pick the highest-priority available chat model matching ordered candidate cascades,
+ * falling back cleanly to any configured non-router chat model so pi-sieve works on any setup.
+ */
+export function selectModelFromCascades<T extends ChatModelLike>(
+	available: readonly T[],
+	cascades: ReadonlyArray<readonly Candidate[]>,
+	options: {
+		preferReasoning: boolean;
+		isCoolingDown?: (provider: string, id: string) => boolean;
+		skip?: Candidate;
+	},
+): T | undefined {
+	const skipKey = options.skip ? `${options.skip.provider}/${options.skip.id}` : undefined;
+	const nonRouter = available.filter((m) => m.provider !== "router");
+
+	const pickFromList = (ignoreCooldown: boolean): T | undefined => {
+		for (const list of cascades) {
+			for (const c of list) {
+				const key = `${c.provider}/${c.id}`;
+				if (skipKey && key === skipKey) continue;
+				if (!ignoreCooldown && options.isCoolingDown?.(c.provider, c.id)) continue;
+				const match = nonRouter.find((m) => m.provider === c.provider && m.id === c.id);
+				if (match) return match;
+			}
+		}
+		return undefined;
+	};
+
+	const exact = pickFromList(false) ?? pickFromList(true);
+	if (exact) return exact;
+
+	const pool = nonRouter.filter((m) => `${m.provider}/${m.id}` !== skipKey);
+	const healthy = pool.filter((m) => !options.isCoolingDown?.(m.provider, m.id));
+	const candidates = healthy.length > 0 ? healthy : pool;
+	if (candidates.length === 0) return undefined;
+
+	return [...candidates].sort((a, b) => {
+		const aScore = (a.reasoning ? 1 : 0) * (options.preferReasoning ? 1 : -1);
+		const bScore = (b.reasoning ? 1 : 0) * (options.preferReasoning ? 1 : -1);
+		if (aScore !== bScore) return bScore - aScore;
+		const aCost = a.cost?.input ?? 0;
+		const bCost = b.cost?.input ?? 0;
+		return options.preferReasoning ? bCost - aCost : aCost - bCost;
+	})[0];
 }

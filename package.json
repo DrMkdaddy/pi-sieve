@@ -1,6 +1,6 @@
 {
   "name": "@drmkdaddy/pi-sieve",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Context-engineering, semantic routing, hybrid Jev compaction, durable tabs, and guardrail suite for the Pi coding agent",
   "license": "MIT",
   "type": "module",

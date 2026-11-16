@@ -1,16 +1,14 @@
 /**
- * Sieve Hybrid Compaction (Deterministic + Jev-1.13 Prune + Semantic Cascade Synthesis)
+ * Sieve Hybrid Compaction (Deterministic + System One Prune + Semantic Cascade Synthesis)
  *
- * Combines two complementary strengths at the compaction boundary (`session_before_compact`):
- * 1. Stage 1 (Observation Masking + $0 Jev Filter): Strips repetitive/noisy tool outputs
- *    while asking `opencode/jev-1.13-free` whether ambiguous bulk steps hold non-reproducible
- *    evidence (`keep-verbatim`) or noise (`drop`).
- * 2. Stage 2 (Semantic Synthesis): Summarizes ONLY the high-signal pruned transcript on
- *    `COMPACTION_CASCADE` with `cacheRetention: "none"`, preserving design rationale ("why")
- *    plus deterministic `Retained Tool Evidence` and `<read-files>` / `<modified-files>`.
+ * Stage 1 uses deterministic observation masking + any available System One classifier
+ * (`opencode/jev-1.13-free`, Cloudflare `clef-flash`, OpenRouter Clef/Jev, OpenAI `gpt-6-luna`,
+ * Copilot `microsoft-decision-1`, or local llama.cpp `/v1/systemone`) to rescue vital facts.
+ * Stage 2 summarizes ONLY the pruned signal transcript via configured compaction cascade.
  */
 import { uuidv7 } from "@earendil-works/pi-ai";
 import { convertToLlm, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { classifyWithAdapters } from "../src/classifier-adapter.ts";
 import {
 	applyJevAnswers,
 	buildHybridSynthesisPrompt,
@@ -25,13 +23,16 @@ import {
 	type CompactMessageLike,
 	type JevBoolAnswer,
 } from "../src/compaction-core.ts";
-import { COMPACTION_CASCADE, FAST_CASCADE, FREE_CASCADE } from "../src/router-core.ts";
+import { loadSieveConfig } from "../src/config.ts";
+import { COMPACTION_CASCADE, FAST_CASCADE, FREE_CASCADE, selectModelFromCascades } from "../src/router-core.ts";
 import { getRuntimeState } from "../src/runtime-state.ts";
 
 const JEV_BATCH_SIZE = 10;
 const JEV_MAX_BATCHES = 3;
 
 export default function (pi: ExtensionAPI) {
+	const config = loadSieveConfig();
+
 	pi.on("session_before_compact", async (event, ctx) => {
 		const { preparation, customInstructions, signal } = event;
 		const allMessages = [...preparation.messagesToSummarize, ...preparation.turnPrefixMessages];
@@ -45,38 +46,35 @@ export default function (pi: ExtensionAPI) {
 		// Stage 1a: Deterministic observation masking.
 		const entries = pruneStepsDeterministic(steps);
 
-		// Stage 1b: Optional $0 Jev classification for ambiguous bulk tool outputs.
+		// Stage 1b: Optional System One classification for ambiguous bulk tool outputs.
 		const askEntries = entries.filter((e) => e.verdict === "ask");
+		const runtimeState = getRuntimeState();
 		let jevRequests = 0;
 		let jevAnswered = 0;
+		let usedClassifier = "rules-only";
 
 		if (askEntries.length > 0 && !signal.aborted) {
-			const jev =
-				ctx.modelRegistry.findOfType("classifier", "opencode", "jev-1.13-free") ??
-				ctx.modelRegistry.findOfType("classifier", "typesafe", "jev-latest");
-			if (jev) {
-				const judgeState = buildJudgeTranscriptState(entries);
-				for (let i = 0; i < askEntries.length && jevRequests < JEV_MAX_BATCHES; i += JEV_BATCH_SIZE) {
-					if (signal.aborted) break;
-					const batch = askEntries.slice(i, i + JEV_BATCH_SIZE);
-					try {
-						const timeout = AbortSignal.timeout(3000);
-						const combined = AbortSignal.any([signal, timeout]);
-						const res = await ctx.modelRegistry.classify(
-							jev,
-							{
-								state: { transcript: judgeState },
-								questions: buildJevQuestionsForBatch(batch),
-							},
-							{ signal: combined },
-						);
-						jevRequests += 1;
-						if (res.stopReason === "stop") {
-							jevAnswered += applyJevAnswers(batch, res.answers as Record<string, JevBoolAnswer | undefined>);
-						}
-					} catch {
-						// Best-effort classifier; deterministic fallback handles remaining steps.
-					}
+			const judgeState = buildJudgeTranscriptState(entries);
+			for (let i = 0; i < askEntries.length && jevRequests < JEV_MAX_BATCHES; i += JEV_BATCH_SIZE) {
+				if (signal.aborted) break;
+				const batch = askEntries.slice(i, i + JEV_BATCH_SIZE);
+				const adaptive = await classifyWithAdapters(
+					ctx,
+					{
+						state: { transcript: judgeState },
+						questions: buildJevQuestionsForBatch(batch),
+					},
+					{
+						preferred: runtimeState.preferredClassifier,
+						systemOne: config.systemOne,
+						timeoutMs: 3000,
+						signal,
+					},
+				);
+				jevRequests += 1;
+				if (adaptive) {
+					usedClassifier = adaptive.usedClassifier;
+					jevAnswered += applyJevAnswers(batch, adaptive.result.answers as Record<string, JevBoolAnswer | undefined>);
 				}
 			}
 		}
@@ -85,26 +83,13 @@ export default function (pi: ExtensionAPI) {
 		const pruned = renderPrunedResult(entries);
 		if (!pruned.prunedTranscript.trim()) return;
 
-		// Stage 2: Semantic synthesis over the pruned signal transcript via COMPACTION_CASCADE.
+		// Stage 2: Semantic synthesis over the pruned signal transcript.
 		const avail = ctx.modelRegistry.getAvailable();
-		const runtimeState = getRuntimeState();
 		const now = Date.now();
 		const isCooling = (provider: string) => (runtimeState.providerCooldownUntil.get(provider) ?? 0) > now;
-
-		const orderedCandidates = [...COMPACTION_CASCADE, ...FAST_CASCADE, ...FREE_CASCADE];
-		const seenModels = new Set<string>();
-		const summaryModels = [];
-		for (const c of orderedCandidates) {
-			const key = `${c.provider}/${c.id}`;
-			if (seenModels.has(key) || isCooling(c.provider)) continue;
-			seenModels.add(key);
-			const found = avail.find((m) => m.provider === c.provider && m.id === c.id);
-			if (found) summaryModels.push(found);
-		}
-		if (summaryModels.length === 0 && ctx.model && ctx.model.provider !== "router") {
-			summaryModels.push(ctx.model);
-		}
-		if (summaryModels.length === 0) return;
+		const compList = config.cascades?.compaction ?? COMPACTION_CASCADE;
+		const fastList = config.cascades?.fast ?? FAST_CASCADE;
+		const freeList = config.cascades?.free ?? FREE_CASCADE;
 
 		const prompt = buildHybridSynthesisPrompt({
 			prunedTranscript: pruned.prunedTranscript,
@@ -115,22 +100,27 @@ export default function (pi: ExtensionAPI) {
 		let synthesized = "";
 		let usedModel = "";
 		let usage: unknown;
+		const tried = new Set<string>();
 
-		for (const model of summaryModels) {
+		for (let attempt = 0; attempt < 4; attempt++) {
 			if (signal.aborted) return;
+			const candidate = selectModelFromCascades(avail, [compList, fastList, freeList], {
+				preferReasoning: false,
+				isCoolingDown: (p, id) => isCooling(p) || tried.has(`${p}/${id}`),
+			});
+			if (!candidate) break;
+			const key = `${candidate.provider}/${candidate.id}`;
+			if (tried.has(key)) break;
+			tried.add(key);
+
 			try {
 				const res = await ctx.modelRegistry.complete(
-					model,
+					candidate,
 					{
 						systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
 						messages: [{ role: "user", content: [{ type: "text", text: prompt }], timestamp: Date.now() }],
 					},
-					{
-						maxTokens: 4096,
-						signal,
-						cacheRetention: "none",
-						sessionId: uuidv7(),
-					},
+					{ maxTokens: 4096, signal, cacheRetention: "none", sessionId: uuidv7() },
 				);
 				if (res.stopReason === "aborted") return;
 				if (res.stopReason === "error") continue;
@@ -141,18 +131,18 @@ export default function (pi: ExtensionAPI) {
 					.trim();
 				if (text) {
 					synthesized = text;
-					usedModel = `${model.provider}/${model.id}`;
+					usedModel = key;
 					usage = res.usage;
 					break;
 				}
 			} catch {
-				// Try next candidate in cascade.
+				// Try next cascade model.
 			}
 		}
 
 		if (!synthesized) return;
 
-		// Stage 3: Append deterministic Retained Evidence (Jev keeps & errors) + Pi fileOps XML.
+		// Stage 3: Append deterministic Retained Evidence + fileOps XML.
 		const fileOpsBlock = formatFileOpsXml(preparation.fileOps);
 		const evidenceSection = pruned.retainedEvidenceBlock
 			? `\n\n## Retained Tool Evidence (Verbatim)\n${pruned.retainedEvidenceBlock}`
@@ -170,7 +160,7 @@ export default function (pi: ExtensionAPI) {
 		};
 
 		ctx.ui?.notify?.(
-			`Hybrid compact: pre-pruned ${prunePct}% (${pruned.stats.totalSteps} steps, Jev=${jevAnswered}) -> ${usedModel} in ${elapsedMs}ms`,
+			`Hybrid compact: pre-pruned ${prunePct}% (${pruned.stats.totalSteps} steps, ${usedClassifier}=${jevAnswered}) -> ${usedModel} in ${elapsedMs}ms`,
 			"info",
 		);
 
@@ -182,6 +172,7 @@ export default function (pi: ExtensionAPI) {
 				...(usage ? { usage: usage as never } : {}),
 				details: {
 					source: "sieve-hybrid-compaction",
+					classifier: usedClassifier,
 					prePruneStats: pruned.stats,
 					jevRequests,
 					jevAnswered,

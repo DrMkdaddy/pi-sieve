@@ -7,8 +7,12 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { listAvailableClassifiers } from "../src/classifier-adapter.ts";
+import { detectClipboardBackend } from "../src/clipboard-core.ts";
+import { defaultConfigPath, loadSieveConfig } from "../src/config.ts";
 import { getRuntimeState } from "../src/runtime-state.ts";
 import { ctxBar, fmtTokens } from "../src/status-core.ts";
+import fs from "node:fs";
 
 function collectSessionStats(ctx: ExtensionContext) {
 	let input = 0;
@@ -156,9 +160,30 @@ export default function (pi: ExtensionAPI) {
 				`Session:    ${s.turns} turns · ↑${fmtTokens(s.input)} ↓${fmtTokens(s.output)} R${fmtTokens(s.cacheRead)} · ctx ${s.pct}% (${fmtTokens(s.lastContextTokens)}/${fmtTokens(s.ctxWindow)}) · $${s.cost.toFixed(4)}`,
 				`Providers:  ${providers.join(", ")} (${avail.length} models)`,
 				`Cooldowns:  ${coolingProviders.length || coolingModels.length ? [...coolingProviders, ...coolingModels].join(", ") : "none"}`,
-				`Commands:   /tabs · /handoff · /compact · /copy · /diff-copy · /router-reset · /auto-thinking`,
+				`Commands:   /tabs · /handoff · /compact · /copy · /diff-copy · /sieve-doctor · /sieve-classifier · /router-reset`,
 			];
 			ctx.ui.notify(lines.join("\n"), "info");
+		},
+	});
+
+	pi.registerCommand("sieve-doctor", {
+		description: "Verify classifiers, config, clipboard backend, and active model cascades",
+		handler: async (_args, ctx) => {
+			const cfgPath = defaultConfigPath();
+			const cfg = loadSieveConfig(cfgPath);
+			const classifiers = await listAvailableClassifiers(ctx, cfg.classifier);
+			const clip = detectClipboardBackend();
+			const avail = ctx.modelRegistry.getAvailable().filter((m) => m.provider !== "router");
+			const clfList = classifiers.map((m) => `${m.provider}/${m.id}`);
+			if (cfg.systemOne) clfList.push(`systemone-http/${cfg.systemOne.model} (${cfg.systemOne.url})`);
+
+			const report = [
+				`Config:      ${fs.existsSync(cfgPath) ? cfgPath : `${cfgPath} (using built-in defaults)`}`,
+				`Classifiers: ${clfList.length ? clfList.join(", ") : "NONE (deterministic heuristic fallback; configure OPENCODE_API_KEY, CLOUDFLARE_API_KEY+ACCOUNT_ID, OPENROUTER_API_KEY, OPENAI_API_KEY, or PI_SIEVE_SYSTEMONE_URL)"}`,
+				`Chat pool:   ${avail.length} available models across ${Array.from(new Set(avail.map((m) => m.provider))).length} providers`,
+				`Clipboard:   ${clip ? clip.label : "none found (optional: install wl-clipboard, xclip, or xsel)"}`,
+			];
+			ctx.ui.notify(report.join("\n"), "info");
 		},
 	});
 }

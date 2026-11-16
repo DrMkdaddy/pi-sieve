@@ -1,0 +1,28 @@
+{
+  "classifier": "auto",
+  "autoThinking": true,
+  "systemOne": {
+    "url": "http://127.0.0.1:8080/v1/systemone",
+    "model": "openjev"
+  },
+  "cascades": {
+    "compaction": [
+      { "provider": "opencode-go", "id": "deepseek-v4.1-flash" },
+      { "provider": "anthropic", "id": "claude-haiku-4-5" },
+      { "provider": "google", "id": "gemini-2.5-flash" },
+      { "provider": "openai", "id": "gpt-4.1-mini" }
+    ],
+    "fast": [
+      { "provider": "opencode-go", "id": "deepseek-v4.1-flash" },
+      { "provider": "anthropic", "id": "claude-sonnet-4-5" },
+      { "provider": "openai", "id": "gpt-4.1" },
+      { "provider": "google", "id": "gemini-2.5-flash" }
+    ],
+    "pro": [
+      { "provider": "antigravity-acp", "id": "gemini-4-argon" },
+      { "provider": "anthropic", "id": "claude-opus-4-5" },
+      { "provider": "openai", "id": "o3" },
+      { "provider": "openrouter", "id": "deepseek/deepseek-r1" }
+    ]
+  }
+}

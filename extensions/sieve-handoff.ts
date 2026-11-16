@@ -8,7 +8,8 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { type Message, uuidv7 } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { BorderedLoader, convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
-import { COMPACTION_CASCADE, FAST_CASCADE } from "../src/router-core.ts";
+import { loadSieveConfig } from "../src/config.ts";
+import { COMPACTION_CASCADE, FAST_CASCADE, FREE_CASCADE, selectModelFromCascades } from "../src/router-core.ts";
 
 const SYSTEM_PROMPT = `You are a context transfer assistant. Given a conversation history and the user's goal for a new thread, generate a focused prompt that:
 
@@ -75,11 +76,20 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			const avail = ctx.modelRegistry.getAvailable();
-			const summaryCandidates = [...COMPACTION_CASCADE, ...FAST_CASCADE]
-				.map((c) => avail.find((m) => m.provider === c.provider && m.id === c.id))
-				.filter((m): m is NonNullable<typeof m> => m !== undefined);
-			if (summaryCandidates.length === 0 && ctx.model && ctx.model.provider !== "router") {
-				summaryCandidates.push(ctx.model);
+			const cfg = loadSieveConfig();
+			const compList = cfg.cascades?.compaction ?? COMPACTION_CASCADE;
+			const fastList = cfg.cascades?.fast ?? FAST_CASCADE;
+			const freeList = cfg.cascades?.free ?? FREE_CASCADE;
+			const summaryCandidates: Array<(typeof avail)[number]> = [];
+			const seen = new Set<string>();
+			for (let i = 0; i < 4; i++) {
+				const picked = selectModelFromCascades(avail, [compList, fastList, freeList], {
+					preferReasoning: false,
+					isCoolingDown: (p, id) => seen.has(`${p}/${id}`),
+				});
+				if (!picked || seen.has(`${picked.provider}/${picked.id}`)) break;
+				seen.add(`${picked.provider}/${picked.id}`);
+				summaryCandidates.push(picked);
 			}
 			if (summaryCandidates.length === 0) {
 				ctx.ui.notify("No available model for handoff", "error");

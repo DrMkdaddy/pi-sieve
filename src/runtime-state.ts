@@ -12,6 +12,7 @@ export interface SieveRuntimeState {
 	providerCooldownUntil: Map<string, number>;
 	modelCooldownUntil: Map<string, number>;
 	autoThinking: boolean;
+	preferredClassifier: string;
 	lastDispatch?: { provider: string; id: string; thinking: Thinking };
 	lastJudgment?: Judgment;
 	lastCompaction?: CompactionTelemetry;
@@ -27,6 +28,7 @@ export function getRuntimeState(): SieveRuntimeState {
 			providerCooldownUntil: new Map<string, number>(),
 			modelCooldownUntil: new Map<string, number>(),
 			autoThinking: true,
+			preferredClassifier: "auto",
 		};
 	}
 	return g[KEY];

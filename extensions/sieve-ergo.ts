@@ -1,13 +1,13 @@
 /**
- * Sieve Ergonomics (/copy, /diff)
+ * Sieve Workspace Ergonomics (`/copy`, `/copy code`, `/diff-copy`)
  *
- * Addresses recurring workflow tells:
- * - Clean Wayland clipboard copy via `wl-copy` (no TTY line-wrap mangling)
- * - Fast git diff/status summary without leaving Pi or polluting model context
+ * Cross-platform clipboard export across Wayland (`wl-copy`), X11 (`xclip` / `xsel`),
+ * and macOS (`pbcopy`), keeping bulky copy helpers out of model context.
  */
 import { execFileSync } from "node:child_process";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { copyToClipboard } from "../src/clipboard-core.ts";
 
 function lastAssistantText(ctx: ExtensionContext): string {
 	for (const entry of [...ctx.sessionManager.getBranch()].reverse()) {
@@ -28,13 +28,9 @@ function lastCodeBlock(text: string): string {
 	return matches.at(-1)?.[1]?.trim() ?? "";
 }
 
-function copyWayland(text: string): void {
-	execFileSync("wl-copy", [], { input: text, stdio: ["pipe", "ignore", "ignore"] });
-}
-
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("copy", {
-		description: "Copy last assistant response (or `/copy code` for last fenced code block) to Wayland clipboard",
+		description: "Copy last assistant response (or `/copy code` for last fenced code block) to system clipboard",
 		handler: async (args, ctx) => {
 			const text = lastAssistantText(ctx);
 			if (!text) {
@@ -48,28 +44,25 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 			try {
-				copyWayland(payload);
+				const backend = copyToClipboard(payload);
 				ctx.ui.notify(
-					`Copied ${wantCode ? "code block" : "response"} (${payload.length} chars) to clipboard`,
+					`Copied ${wantCode ? "code block" : "response"} (${payload.length} chars) via ${backend.label}`,
 					"info",
 				);
 			} catch (err) {
-				ctx.ui.notify(`wl-copy failed: ${err instanceof Error ? err.message : String(err)}`, "error");
+				ctx.ui.notify(`Clipboard failed: ${err instanceof Error ? err.message : String(err)}`, "error");
 			}
 		},
 	});
 
 	pi.registerCommand("diff-copy", {
-		description: "Copy git diff (or git status if clean) to Wayland clipboard",
+		description: "Copy git diff (or git status if clean) to system clipboard",
 		handler: async (_args, ctx) => {
 			try {
-				const status = execFileSync("git", ["status", "--short"], {
-					cwd: ctx.cwd,
-					encoding: "utf8",
-				}).trim();
+				const status = execFileSync("git", ["status", "--short"], { cwd: ctx.cwd, encoding: "utf8" }).trim();
 				const full = execFileSync("git", ["diff"], { cwd: ctx.cwd, encoding: "utf8" });
-				copyWayland(full || status || "clean");
-				ctx.ui.notify("Copied git diff to clipboard", "info");
+				const backend = copyToClipboard(full || status || "clean");
+				ctx.ui.notify(`Copied git diff via ${backend.label}`, "info");
 			} catch (err) {
 				ctx.ui.notify(`git diff failed: ${err instanceof Error ? err.message : String(err)}`, "error");
 			}
