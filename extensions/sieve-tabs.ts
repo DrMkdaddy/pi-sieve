@@ -1,5 +1,5 @@
 /**
- * Noctalia Durable Session Tabs (OpenCode-style tab strip + persistent history)
+ * Sieve Durable Session Tabs (OpenCode-style tab strip + persistent history)
  *
  * - Persists open tab order per workspace under ~/.pi/agent/cache/tabs/<hash>.json
  * - Keeps all session JSONL trees durably in ~/.pi/agent/sessions/ even when a tab is closed
@@ -207,12 +207,12 @@ export default function (pi: ExtensionAPI) {
 	function attachBar(ctx: ExtensionContext): void {
 		if (!ctx.hasUI) return;
 		if (!enabled) {
-			ctx.ui.setWidget("noctalia-tabs", undefined);
+			ctx.ui.setWidget("sieve-tabs", undefined);
 			return;
 		}
 
 		ctx.ui.setWidget(
-			"noctalia-tabs",
+			"sieve-tabs",
 			(tui, theme) => {
 				let hitRegions: HitRegion[] = [];
 				lastRender = () => tui.requestRender();
@@ -345,7 +345,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("tabs-toggle", {
-		description: "Toggle Noctalia session tab bar",
+		description: "Toggle Sieve session tab bar",
 		handler: async (_args, ctx) => {
 			enabled = !enabled;
 			attachBar(ctx);

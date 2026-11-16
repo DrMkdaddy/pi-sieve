@@ -1,5 +1,5 @@
 /**
- * Noctalia Ergonomics (/copy, /diff)
+ * Sieve Ergonomics (/copy, /diff)
  *
  * Addresses recurring workflow tells:
  * - Clean Wayland clipboard copy via `wl-copy` (no TTY line-wrap mangling)

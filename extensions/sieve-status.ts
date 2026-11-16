@@ -1,5 +1,5 @@
 /**
- * Noctalia Statusline & Diagnostics (`/info`, `/footer`)
+ * Sieve Statusline & Diagnostics (`/info`, `/footer`)
  *
  * Displays active route, Jev classification judgment, token/cache R/W counts,
  * context utilization bar, USD cost, git branch, and last hybrid compaction metrics.
@@ -106,12 +106,12 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("footer", {
-		description: "Toggle Noctalia telemetry footer",
+		description: "Toggle Sieve telemetry footer",
 		handler: async (_args, ctx) => {
 			enabled = !enabled;
 			if (enabled) {
 				attachFooter(ctx);
-				ctx.ui.notify("Noctalia footer enabled", "info");
+				ctx.ui.notify("Sieve footer enabled", "info");
 			} else {
 				ctx.ui.setFooter(undefined);
 				ctx.ui.notify("Default footer restored", "info");

@@ -1,5 +1,5 @@
 /**
- * Noctalia Shell Guardrails
+ * Sieve Shell Guardrails
  *
  * Pre-execution bash policy gate:
  * - Deny: gh pr merge, git reset --hard, git clean -*

@@ -8,7 +8,7 @@ export interface CompactionTelemetry {
 	elapsedMs: number;
 }
 
-export interface NoctaliaRuntimeState {
+export interface SieveRuntimeState {
 	providerCooldownUntil: Map<string, number>;
 	modelCooldownUntil: Map<string, number>;
 	autoThinking: boolean;
@@ -17,11 +17,11 @@ export interface NoctaliaRuntimeState {
 	lastCompaction?: CompactionTelemetry;
 }
 
-const KEY = Symbol.for("noctalia.pi.runtimeState");
+const KEY = Symbol.for("drmkdaddy.piSieve.runtimeState");
 
-/** Return the process-wide typed runtime state shared across Noctalia extensions. */
-export function getRuntimeState(): NoctaliaRuntimeState {
-	const g = globalThis as Record<symbol, NoctaliaRuntimeState | undefined>;
+/** Return the process-wide typed runtime state shared across pi-sieve extensions. */
+export function getRuntimeState(): SieveRuntimeState {
+	const g = globalThis as Record<symbol, SieveRuntimeState | undefined>;
 	if (!g[KEY]) {
 		g[KEY] = {
 			providerCooldownUntil: new Map<string, number>(),

@@ -66,7 +66,7 @@ test("deterministic + Jev hybrid retains errors, user constraints, and Jev-rescu
 			role: "toolResult",
 			toolCallId: "c2",
 			toolName: "bash",
-			content: `{"token_field":"x_noctalia_sig","ttl_sec":300,"padding":"${"z".repeat(900)}"}`,
+			content: `{"token_field":"x_sieve_sig","ttl_sec":300,"padding":"${"z".repeat(900)}"}`,
 		},
 		{
 			role: "assistant",
@@ -101,7 +101,7 @@ test("deterministic + Jev hybrid retains errors, user constraints, and Jev-rescu
 
 	assert.match(rendered.prunedTranscript, /Never drop the API token schema check/);
 	assert.match(rendered.prunedTranscript, /file re-readable/);
-	assert.match(rendered.retainedEvidenceBlock, /x_noctalia_sig/);
+	assert.match(rendered.retainedEvidenceBlock, /x_sieve_sig/);
 	assert.match(rendered.retainedEvidenceBlock, /token_field assertion failed/);
 	assert.ok(rendered.stats.reductionRatio > 0.5);
 });

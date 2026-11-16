@@ -1,5 +1,5 @@
 /**
- * Noctalia Semantic Cascade Router (powered by opencode/jev-1.13-free + 4-Tier Auto-Thinking)
+ * Sieve Semantic Cascade Router (powered by opencode/jev-1.13-free + 4-Tier Auto-Thinking)
  *
  * Uses Pi's built-in non-autoregressive System One classifier (`opencode/jev-1.13-free`, $0 free)
  * via `ctx.modelRegistry.classify()` to score task kind, difficulty, and reasoning need in a single
@@ -208,7 +208,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("router-reset", {
-		description: "Clear provider/model cooldowns in Noctalia Cascade Router",
+		description: "Clear provider/model cooldowns in Sieve Cascade Router",
 		handler: async (_args, ctx) => {
 			providerCooldownUntil.clear();
 			modelCooldownUntil.clear();

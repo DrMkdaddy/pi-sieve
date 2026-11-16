@@ -1,14 +1,14 @@
 {
-  "name": "@drmkdaddy/pi-noctalia",
+  "name": "@drmkdaddy/pi-sieve",
   "version": "0.2.0",
   "description": "Context-engineering, semantic routing, hybrid Jev compaction, durable tabs, and guardrail suite for the Pi coding agent",
   "license": "MIT",
   "type": "module",
   "author": "Noor Mkdad <noorhayatywadam@gmail.com>",
-  "homepage": "https://github.com/DrMkdaddy/pi-noctalia",
+  "homepage": "https://github.com/DrMkdaddy/pi-sieve",
   "repository": {
     "type": "git",
-    "url": "https://github.com/DrMkdaddy/pi-noctalia.git"
+    "url": "git@github.com:DrMkdaddy/pi-sieve.git"
   },
   "keywords": [
     "pi-package",
@@ -17,7 +17,7 @@
     "model-router",
     "compaction",
     "jev",
-    "noctalia"
+    "sieve"
   ],
   "scripts": {
     "test": "node --test test/*.test.ts",
@@ -27,13 +27,13 @@
   },
   "pi": {
     "extensions": [
-      "./extensions/noctalia-compaction.ts",
-      "./extensions/noctalia-router.ts",
-      "./extensions/noctalia-tabs.ts",
-      "./extensions/noctalia-status.ts",
-      "./extensions/noctalia-handoff.ts",
-      "./extensions/noctalia-guardrails.ts",
-      "./extensions/noctalia-ergo.ts"
+      "./extensions/sieve-compaction.ts",
+      "./extensions/sieve-router.ts",
+      "./extensions/sieve-tabs.ts",
+      "./extensions/sieve-status.ts",
+      "./extensions/sieve-handoff.ts",
+      "./extensions/sieve-guardrails.ts",
+      "./extensions/sieve-ergo.ts"
     ]
   }
 }

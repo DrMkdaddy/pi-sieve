@@ -1,5 +1,5 @@
 /**
- * Noctalia Intentional Handoff (`/handoff <goal>`)
+ * Sieve Intentional Handoff (`/handoff <goal>`)
  *
  * Transfers focused context into a clean session around 40-60% utilization
  * instead of letting long sessions degrade into context rot.

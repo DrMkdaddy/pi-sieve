@@ -1,5 +1,5 @@
 /**
- * Noctalia Hybrid Compaction (Deterministic + Jev-1.13 Prune + Semantic Cascade Synthesis)
+ * Sieve Hybrid Compaction (Deterministic + Jev-1.13 Prune + Semantic Cascade Synthesis)
  *
  * Combines two complementary strengths at the compaction boundary (`session_before_compact`):
  * 1. Stage 1 (Observation Masking + $0 Jev Filter): Strips repetitive/noisy tool outputs
@@ -181,7 +181,7 @@ export default function (pi: ExtensionAPI) {
 				tokensBefore: preparation.tokensBefore,
 				...(usage ? { usage: usage as never } : {}),
 				details: {
-					source: "noctalia-hybrid-compaction",
+					source: "sieve-hybrid-compaction",
 					prePruneStats: pruned.stats,
 					jevRequests,
 					jevAnswered,
