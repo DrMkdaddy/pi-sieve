@@ -5,7 +5,14 @@
 <h1 align="center">pi-sieve</h1>
 
 <p align="center">
-  Internal tooling, semantic routing, hybrid Jev/Clef compaction, durable tabs, and guardrail suite for the <a href="https://github.com/earendil-works/pi">Pi</a> coding agent.
+  Semantic model cascades, hybrid Jev/Clef compaction pre-pruning, durable workspace tabs, and shell safety guardrails for the <a href="https://github.com/earendil-works/pi">Pi</a> coding agent.
+</p>
+
+<p align="center">
+  <a href="https://github.com/DrMkdaddy/pi-sieve/actions/workflows/ci.yml"><img src="https://github.com/DrMkdaddy/pi-sieve/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D22.18-339933?logo=node.js&logoColor=white" alt="Node >= 22.18" />
+  <img src="https://img.shields.io/badge/runtime%20deps-0-10b981" alt="Zero runtime dependencies" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" />
 </p>
 
 ---
@@ -17,6 +24,14 @@ The Pi efficiency suite is split into three focused, standalone packages with ze
 - **`pi-sieve` (this repo):** Semantic model cascades, `$0` System One classification (`Jev`, `Clef`, `GPT-6 Luna`), two-stage compaction pre-pruning, durable session tabs, `/handoff`, and shell guardrails.
 - **[`pi-vault`](https://github.com/DrMkdaddy/pi-vault):** Persistent SQLite (`WAL` + `FTS5` + `zstd`) artifact store, supersession tracking, compaction DAG, and append-only verbatim recall tools (`vault_search`, `vault_expand`, `vault_dag`).
 - **[`pi-codemap`](https://github.com/DrMkdaddy/pi-codemap):** Code-reading token reduction (`read_outline`, `read_symbol`, unbounded whole-file `read` outlining, session hash dedupe/diffs, and search noise pruning).
+
+```mermaid
+flowchart LR
+  P["User Prompt"] --> SR["sieve-router: Jev/Clef Difficulty Score + Cache Sticky Model"]
+  SR --> TG["sieve-guardrails: Pre-exec Bash Policy"]
+  TG --> SC["session_before_compact: Stage 1 Masking + Jev Evidence Rescue"]
+  SC --> SYN["Stage 2 Cascade Synthesis + Deterministic fileOps XML"]
+```
 
 ### Directory Reading Guide (`pi-sieve`)
 
@@ -162,7 +177,13 @@ Even without `pi-sieve.json`, if your setup lacks the default provider IDs, `sel
   - Remote webhook schema lookup (`curl`): `probability: 0.82` → **rescued verbatim (`keep-verbatim`)**
   - Verbose `/healthz` metrics curl: `probability: 0.06` → **dropped as noise**
 
-### 3. Typecheck, Tests & CI
+### 3. Tradeoffs, Typecheck, Tests & Local Dev
+- **When to pair with `pi-vault` / `pi-codemap`:** `pi-sieve` discards pre-pruned bulk payloads once synthesized unless you also run `pi-vault` (verbatim SQLite recall), and focuses on session orchestration rather than symbol-level source reads (`pi-codemap`).
 - `npm run typecheck` (`tsc --noEmit`): `0` errors
 - `npm test`: `19/19` unit tests passing (`node --test test/*.test.ts`)
+- `npm run bench` / `npm run bench:live`: multi-corpus compaction & live System One Jev probes
 - GitHub Actions CI (`.github/workflows/ci.yml`): runs strict `tsc`, unit tests, and benchmarks on every push to `dev` and `main`.
+
+## License
+
+MIT — Noor Mkdad (`@DrMkdaddy`)
