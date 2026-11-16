@@ -10,6 +10,39 @@
 
 ---
 
+## Suite Architecture (Split by Concern) & How to Read This Repo
+
+The Pi efficiency suite is split into three focused, standalone packages with zero cross-package runtime dependencies:
+
+- **`pi-sieve` (this repo):** Semantic model cascades, `$0` System One classification (`Jev`, `Clef`, `GPT-6 Luna`), two-stage compaction pre-pruning, durable session tabs, `/handoff`, and shell guardrails.
+- **[`pi-vault`](https://github.com/DrMkdaddy/pi-vault):** Persistent SQLite (`WAL` + `FTS5` + `zstd`) artifact store, supersession tracking, compaction DAG, and append-only verbatim recall tools (`vault_search`, `vault_expand`, `vault_dag`).
+- **[`pi-codemap`](https://github.com/DrMkdaddy/pi-codemap):** Code-reading token reduction (`read_outline`, `read_symbol`, unbounded whole-file `read` outlining, session hash dedupe/diffs, and search noise pruning).
+
+### Directory Reading Guide (`pi-sieve`)
+
+Pure logic sits in `src/` (tested standalone in `test/` with zero Pi SDK runtime needed); `extensions/` binds pure modules to Pi lifecycle hooks:
+
+```text
+pi-sieve/
+├── src/
+│   ├── classifier-adapter.ts  # 1. System One adapter cascade (Jev, Clef, Luna, Copilot, llama.cpp HTTP)
+│   ├── router-core.ts         # 2. Cascade lists (COMPACTION/FAST/PRO/FREE), KV stickiness & quota cooldowns
+│   ├── compaction-core.ts     # 3. Deterministic observation masking, Jev batch rescue & fileOps XML
+│   ├── config.ts              # 4. ~/.pi/agent/pi-sieve.json & PI_SIEVE_CONFIG loader
+│   ├── runtime-state.ts       # 5. Process-wide typed singleton shared across footer/router/compaction
+│   ├── guardrails-core.ts     # 6. Destructive shell command & git push fail-closed policy
+│   ├── tabs-core.ts           # 7. Tab title normalization & workspace hash helpers
+│   ├── status-core.ts         # 8. Footer meter & token scaling formatters
+│   └── clipboard-core.ts      # 9. Wayland/X11/macOS clipboard backend detection
+├── extensions/                # 10. Thin Pi event hooks binding src/ modules
+├── test/                      # 11. Unit & adapter config tests (node --test)
+└── bench/                     # 12. Deterministic multi-corpus & live Jev benchmark scripts
+```
+
+Recommended reading order: `src/router-core.ts` -> `src/classifier-adapter.ts` -> `src/compaction-core.ts` -> `extensions/sieve-router.ts` & `extensions/sieve-compaction.ts`.
+
+---
+
 ## Requirements & Quickstart
 
 ### Prerequisites

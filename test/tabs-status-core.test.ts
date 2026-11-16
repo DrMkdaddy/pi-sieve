@@ -8,8 +8,8 @@ test("runtime-state returns stable process-wide singleton", () => {
 	const a = getRuntimeState();
 	const b = getRuntimeState();
 	assert.equal(a, b);
-	a.lastDispatch = { provider: "antigravity-acp", id: "gemini-3.8-flash", thinking: "low" };
-	assert.equal(b.lastDispatch?.id, "gemini-3.8-flash");
+	a.lastDispatch = { provider: "antigravity-acp", id: "gemini-4-hydrogen", thinking: "low" };
+	assert.equal(b.lastDispatch?.id, "gemini-4-hydrogen");
 });
 
 test("status formatting helpers clamp bars and scale token counts", () => {

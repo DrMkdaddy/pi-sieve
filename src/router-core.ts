@@ -39,12 +39,12 @@ export const COMPACTION_CASCADE: Candidate[] = [
 	{ provider: "opencode-go", id: "deepseek-v4.1-flash" },
 	{ provider: "zai", id: "glm-5.3-flash" },
 	{ provider: "llm7", id: "default" },
-	{ provider: "antigravity-acp", id: "gemini-3.8-flash" },
+	{ provider: "antigravity-acp", id: "gemini-4-hydrogen" },
 ];
 
 export const FAST_CASCADE: Candidate[] = [
 	{ provider: "opencode-go", id: "deepseek-v4.1-flash" },
-	{ provider: "antigravity-acp", id: "gemini-3.8-flash" },
+	{ provider: "antigravity-acp", id: "gemini-4-hydrogen" },
 	{ provider: "zai", id: "glm-5.3-flash" },
 	{ provider: "opencode-go", id: "glm-5.3-flash" },
 	{ provider: "groq", id: "llama-3.3-70b-versatile" },
@@ -57,7 +57,7 @@ export const PRO_CASCADE: Candidate[] = [
 	{ provider: "opencode-go", id: "deepseek-v4-pro" },
 	{ provider: "antigravity-acp", id: "claude-sonnet-5-5" },
 	{ provider: "zai", id: "glm-5.3" },
-	{ provider: "antigravity-acp", id: "gemini-3.8-flash" },
+	{ provider: "antigravity-acp", id: "gemini-4-hydrogen" },
 ];
 
 export const FREE_CASCADE: Candidate[] = [
