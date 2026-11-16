@@ -1,0 +1,37 @@
+{
+  "name": "@drmkdaddy/pi-noctalia",
+  "version": "0.1.0",
+  "description": "Context-engineering, semantic routing, hybrid Jev compaction, durable tabs, and guardrail suite for the Pi coding agent",
+  "license": "MIT",
+  "type": "module",
+  "author": "Noor Mkdad <noorhayatywadam@gmail.com>",
+  "homepage": "https://github.com/DrMkdaddy/pi-noctalia",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DrMkdaddy/pi-noctalia.git"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-coding-agent",
+    "context-engineering",
+    "model-router",
+    "compaction",
+    "jev",
+    "noctalia"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "bench": "node bench/compaction-bench.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/noctalia-compaction.ts",
+      "./extensions/noctalia-router.ts",
+      "./extensions/noctalia-tabs.ts",
+      "./extensions/noctalia-status.ts",
+      "./extensions/noctalia-handoff.ts",
+      "./extensions/noctalia-guardrails.ts",
+      "./extensions/noctalia-ergo.ts"
+    ]
+  }
+}

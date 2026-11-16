@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="pi-noctalia logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#111216"/>
+      <stop offset="100%" stop-color="#08080a"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="28" y1="24" x2="88" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="58" y1="42" x2="104" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#f4f3ee"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Obsidian squircle container -->
+  <rect x="4" y="4" width="120" height="120" rx="26" fill="url(#bg)" stroke="#242429" stroke-width="2"/>
+
+  <!-- Geometric Noctalia crescent (clean Boolean circle subtraction via evenodd path) -->
+  <path fill-rule="evenodd" clip-rule="evenodd" fill="url(#amber)"
+    d="M66 26 A38 38 0 1 0 98.5 85.2 A30 30 0 1 1 66 26 Z"/>
+
+  <!-- Precision signal-routing lattice in crescent harbor -->
+  <path d="M58 64 C70 64, 72 44, 88 44 M58 64 C74 64, 76 64, 92 64 M58 64 C70 64, 72 82, 86 82"
+        fill="none" stroke="url(#arc)" stroke-width="2.5" stroke-linecap="round" opacity="0.92"/>
+
+  <!-- Origin gate node -->
+  <circle cx="58" cy="64" r="4.5" fill="#f4f3ee"/>
+  <circle cx="58" cy="64" r="2" fill="#08080a"/>
+
+  <!-- Cascaded target nodes (Pro / Fast / Compaction tiers) -->
+  <circle cx="88" cy="44" r="4" fill="#60a5fa"/>
+  <circle cx="92" cy="64" r="3.5" fill="#f4f3ee"/>
+  <circle cx="86" cy="82" r="3.5" fill="#fb923c"/>
+</svg>
