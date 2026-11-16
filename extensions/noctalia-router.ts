@@ -34,6 +34,7 @@ import {
 	type RouteMessageLike,
 	type Thinking,
 } from "../src/router-core.ts";
+import { getRuntimeState } from "../src/runtime-state.ts";
 
 interface RouterState {
 	tier: "fast" | "pro";
@@ -41,9 +42,9 @@ interface RouterState {
 }
 
 const COOLDOWN_PATH = path.join(os.homedir(), ".pi", "agent", "router-cooldowns.json");
-const providerCooldownUntil = new Map<string, number>();
-const modelCooldownUntil = new Map<string, number>();
-let autoThinkingEnabled = true;
+const runtimeState = getRuntimeState();
+const providerCooldownUntil = runtimeState.providerCooldownUntil;
+const modelCooldownUntil = runtimeState.modelCooldownUntil;
 
 function loadCooldowns(): void {
 	try {
@@ -83,17 +84,6 @@ function saveCooldowns(): void {
 }
 
 loadCooldowns();
-
-const sharedState = {
-	providerCooldownUntil,
-	modelCooldownUntil,
-	get autoThinking() {
-		return autoThinkingEnabled;
-	},
-	lastDispatch: undefined as { provider: string; id: string; thinking: Thinking } | undefined,
-	lastJudgment: undefined as Judgment | undefined,
-};
-(globalThis as Record<string, unknown>).__noctaliaRouterState = sharedState;
 
 function modelKey(provider: string, id: string): string {
 	return `${provider}/${id}`;
@@ -175,7 +165,8 @@ async function classifyWithJev(
 		if (res.stopReason !== "stop") return heuristicJudge(text, manualFloor);
 		const kind = res.answers.task_kind?.type === "choice" ? res.answers.task_kind.choice : "implement";
 		const complexity = res.answers.complexity?.type === "choice" ? res.answers.complexity.choice : "standard";
-		const deepReasoning = res.answers.deep_reasoning?.type === "bool" ? res.answers.deep_reasoning.choice === true : false;
+		const deepAns = res.answers.deep_reasoning;
+		const deepReasoning = deepAns?.type === "bool" ? deepAns.probability >= 0.55 : false;
 		return mapJevAnswers(kind, complexity, deepReasoning, manualFloor);
 	} catch {
 		return heuristicJudge(text, manualFloor);
@@ -197,8 +188,8 @@ function pickAvailable(ctx: ExtensionContext, candidates: Candidate[], skip?: { 
 }
 
 function recordDispatch(provider: string, id: string, thinking: Thinking, judgment?: Judgment): void {
-	sharedState.lastDispatch = { provider, id, thinking };
-	if (judgment) sharedState.lastJudgment = judgment;
+	runtimeState.lastDispatch = { provider, id, thinking };
+	if (judgment) runtimeState.lastJudgment = judgment;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -230,10 +221,10 @@ export default function (pi: ExtensionAPI) {
 		description: "Toggle dynamic auto-thinking mode selection (`on` | `off`)",
 		handler: async (args, ctx) => {
 			const arg = args.trim().toLowerCase();
-			if (arg === "on") autoThinkingEnabled = true;
-			else if (arg === "off") autoThinkingEnabled = false;
-			else autoThinkingEnabled = !autoThinkingEnabled;
-			ctx.ui.notify(`Auto-thinking ${autoThinkingEnabled ? "enabled" : "disabled"}`, "info");
+			if (arg === "on") runtimeState.autoThinking = true;
+			else if (arg === "off") runtimeState.autoThinking = false;
+			else runtimeState.autoThinking = !runtimeState.autoThinking;
+			ctx.ui.notify(`Auto-thinking ${runtimeState.autoThinking ? "enabled" : "disabled"}`, "info");
 		},
 	});
 
@@ -274,7 +265,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			const promptText = lastUserText(request.messages as unknown as RouteMessageLike[]);
-			const judgment = autoThinkingEnabled
+			const judgment = runtimeState.autoThinking
 				? await classifyWithJev(promptText, request.thinkingLevel, ctx, request.signal)
 				: {
 						source: "heuristic" as const,
@@ -347,7 +338,7 @@ export default function (pi: ExtensionAPI) {
 				recordFailure(skip.provider, skip.id, request.failed.message?.errorMessage);
 			}
 			const promptText = lastUserText(request.messages as unknown as RouteMessageLike[]);
-			const judgment = autoThinkingEnabled
+			const judgment = runtimeState.autoThinking
 				? await classifyWithJev(promptText, request.thinkingLevel, ctx, request.signal)
 				: heuristicJudge(promptText, request.thinkingLevel);
 			const clamped = judgment.thinking === "xhigh" || judgment.thinking === "max" ? "high" : judgment.thinking;

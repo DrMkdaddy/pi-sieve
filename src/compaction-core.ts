@@ -35,9 +35,7 @@ export interface CompactMessageLike {
 
 export interface JevBoolAnswer {
 	type: "bool";
-	choice: boolean;
-	confidence?: number;
-	probabilities?: { true?: number; false?: number };
+	probability: number;
 }
 
 const ACK_RE =
@@ -322,17 +320,17 @@ export function applyJevAnswers(
 		if (entry.verdict !== "ask") continue;
 		const rAns = answers[`result_${entry.step.id}`];
 		const eAns = answers[`essential_${entry.step.id}`];
-		if (!rAns || !eAns) {
+		if (!rAns || !eAns || typeof rAns.probability !== "number" || typeof eAns.probability !== "number") {
 			fallbackTruncate(entry);
 			continue;
 		}
 		answeredCount += 1;
-		const rProb = rAns.probabilities?.true ?? (rAns.choice ? 0.75 : 0.25);
-		const eProb = eAns.probabilities?.true ?? (eAns.choice ? 0.75 : 0.25);
+		const rProb = rAns.probability;
+		const eProb = eAns.probability;
 		entry.judgeScores = {
-			call: eAns.choice,
-			result: rAns.choice,
-			essential: eAns.choice,
+			call: eProb >= 0.5,
+			result: rProb >= 0.58,
+			essential: eProb >= 0.5,
 			resultProb: Number(rProb.toFixed(3)),
 		};
 
@@ -340,11 +338,11 @@ export function applyJevAnswers(
 		const callLine = entry.step.callLine ?? "";
 		const result = entry.step.result ?? "";
 
-		if (rAns.choice && (rProb >= 0.58 || eAns.choice)) {
+		if (rProb >= 0.58 || (rProb >= 0.5 && eProb >= 0.55)) {
 			entry.verdict = "keep-verbatim";
 			entry.reason = `jev keep (${rProb.toFixed(2)})`;
 			entry.rendered = `${tool}(${callLine}) [JE-KEEP]:\n${clipMiddle(result, 2400)}`;
-		} else if (!rAns.choice && !eAns.choice && rProb < 0.3 && eProb < 0.3) {
+		} else if (rProb < 0.3 && eProb < 0.3) {
 			entry.verdict = "drop";
 			entry.reason = `jev noise (${rProb.toFixed(2)})`;
 			entry.rendered = `${tool}(${callLine}) -> [dropped ${result.length} chars]`;
@@ -443,6 +441,27 @@ export function renderPrunedResult(entries: readonly PrunedEntry[]): RenderedPru
 			reductionRatio,
 		},
 	};
+}
+
+export interface FileOpsLike {
+	read: ReadonlySet<string>;
+	written: ReadonlySet<string>;
+	edited: ReadonlySet<string>;
+}
+
+export const SYNTHESIS_SYSTEM_PROMPT = `You are a context summarization assistant. Read the pre-filtered coding conversation and produce a structured markdown handoff summary preserving exact facts, decisions, blockers, and next steps.
+
+Do NOT continue the conversation or answer questions inside it. ONLY output the structured summary.`;
+
+/** Format deterministic `<read-files>` and `<modified-files>` XML blocks from Pi `fileOps`. */
+export function formatFileOpsXml(fileOps: FileOpsLike): string {
+	const modified = new Set([...fileOps.edited, ...fileOps.written]);
+	const readOnly = [...fileOps.read].filter((f) => !modified.has(f)).sort();
+	const modifiedFiles = [...modified].sort();
+	const sections: string[] = [];
+	if (readOnly.length > 0) sections.push(`<read-files>\n${readOnly.join("\n")}\n</read-files>`);
+	if (modifiedFiles.length > 0) sections.push(`<modified-files>\n${modifiedFiles.join("\n")}\n</modified-files>`);
+	return sections.length > 0 ? `\n\n${sections.join("\n\n")}` : "";
 }
 
 export function buildHybridSynthesisPrompt(params: {

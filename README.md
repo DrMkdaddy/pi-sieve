@@ -21,9 +21,9 @@
    - Captures non-retryable quota errors (`GoUsageLimitError`, `402`) on `turn_end` and persists provider reset cooldowns (`~/.pi/agent/router-cooldowns.json`).
 
 2. **Two-Stage Hybrid Compaction (`extensions/noctalia-compaction.ts`):**
-   - Intercepts `session_before_compact` instead of burning an expensive LLM pass on raw tool logs or using a rigid template that discards mid-message reasoning.
+   - Intercepts `session_before_compact` instead of burning an expensive LLM pass on raw tool logs or relying on a rigid template that discards mid-message reasoning.
    - **Stage 1 (Observation Masking + `$0` Jev Filter):** Deterministically masks duplicate tool calls, pure acknowledgements, install spam, search dumps, and oversized re-readable file reads while batching ambiguous bulk tool outputs to `opencode/jev-1.13-free`. Outputs flagged `KEEP` by Jev and tool errors are preserved verbatim into `## Retained Tool Evidence (Verbatim)`.
-   - **Stage 2 (Semantic Cascade Synthesis + Deterministic `fileOps`):** Feeds only the ~90% smaller signal transcript + `previousSummary` into the compaction cascade (`cacheRetention: "none"`), appending deterministic `<read-files>` and `<modified-files>` tags from `preparation.fileOps`.
+   - **Stage 2 (Semantic Cascade Synthesis + Deterministic `fileOps`):** Feeds only the pre-pruned signal transcript + `previousSummary` into the compaction cascade (`cacheRetention: "none"`), appending deterministic `<read-files>` and `<modified-files>` blocks from `preparation.fileOps`.
 
 3. **Workspace & Session Ergonomics:**
    - **Durable Tabs (`extensions/noctalia-tabs.ts`):** OpenCode-style workspace tab strip over Pi's append-only JSONL session trees (`/tabs`, `/tab-new`, `/tab-close`, `/tab-prev`, `/tab-next`, `/tab-go`, `/tab-rename`).
@@ -34,43 +34,48 @@
 
 ---
 
-## Measured Pre-Prune Benchmark
+## Verified Benchmarks & Checks
 
-Reproducible run on a realistic 10-step mixed coding transcript (`npm install`, 95-line `grep`, duplicate 240-line `read`, remote JSON schema lookup rescued by Jev, noisy metrics curl dropped by Jev, file edit, and failing test trace):
+### 1. Deterministic Stage 1 Multi-Corpus & Multi-Pass Stability (`npm run bench`)
 
-```text
-npm test   -> 10/10 passing (node --test test/*.test.ts, 84.7 ms)
-npm run bench (100 iterations):
-  perRunMs:     0.076 ms (deterministic pruning + verdict application)
-  rawChars:     32,830 (~8,208 est. tokens)
-  prunedChars:  3,185  (~797 est. tokens)
-  reduction:    90.3%
-  verdicts:     2 kept-verbatim (Jev rescue + error), 2 truncated, 3 dropped
-  recall:       userGoal=true, failingError=true, jevRescuedPayload=true
-```
+Across three distinct engineering session corpora (webhook HMAC migration + error trace, monorepo SQLite/Cargo/Go build triage, and bounded streaming parser file-read churn):
+
+| Corpus | Raw Chars | Pruned Chars | Reduction | Per-Run Time | Critical Recall (`goal` / `error` / `rescued`) |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `webhook-migration-and-error` | 32,779 | 3,158 | **90.4%** | 0.107 ms | `true / true / true` |
+| `monorepo-search-build-triage` | 10,989 | 1,520 | **86.2%** | 0.039 ms | `true / true / true` |
+| `long-file-read-churn` | 40,210 | 1,822 | **95.5%** | 0.018 ms | `true / true / true` |
+| **Aggregate (3 sessions)** | **83,978** | **6,500** | **92.3%** | **< 0.11 ms** | **100% preserved** |
+
+- **6-pass re-compaction stability probe:** Prompt length bounded deterministically (`813 → 903` chars across 6 sequential compactions, `boundedGrowth: true`).
+
+### 2. Live `opencode/jev-1.13-free` System One Probes (`npm run bench:live`)
+
+Measured live over Pi's `ModelRegistry.classify()`:
+
+- **Routing classification (`$0` cost):**
+  - Trivial HTTP lookup: `308 ms` → `explain / trivial` → `thinking: low`
+  - Bounded fetch-retry implementation: `183 ms` → `implement / standard` → `thinking: medium`
+  - Multi-region Postgres distributed lock architecture: `710 ms` → `plan / architectural` (`deepReasoning: true`) → `thinking: xhigh`
+- **Compaction evidence filtering (`$0` cost, `332 ms` batch):**
+  - Remote webhook schema lookup (`curl`): `probability: 0.82` → **rescued verbatim (`keep-verbatim`)**
+  - Verbose `/healthz` metrics curl: `probability: 0.06` → **dropped as noise**
+
+### 3. Typecheck & Unit Suite
+
+- Strict TypeScript check (`npx tsc --noEmit`): `0` errors
+- Node native test runner (`npm test`): `14/14` unit tests passing (`src/` + `test/`)
 
 ---
 
 ## Install (Pi Package)
 
 ```bash
-# Local development install
-pi install /home/noorm/projects/pi-noctalia
-
-# Or via GitHub once published
+# Via GitHub
 pi install git:github.com/DrMkdaddy/pi-noctalia
+
+# Or local checkout
+pi install /home/noorm/projects/pi-noctalia
 ```
 
 Requires Node.js >= 22 (tested on Node 26.13.0) and `@earendil-works/pi-coding-agent` (`pi` CLI). Optional Wayland clipboard helpers use `wl-copy`.
-
----
-
-## Repository Layout
-
-- [src/compaction-core.ts](src/compaction-core.ts) — Pure observation-masking, Jev `bool` question builder, and evidence-retaining renderer
-- [src/router-core.ts](src/router-core.ts) — Hindsight/system injection stripper, quota cooldown parser, and difficulty mapper
-- [src/guardrails-core.ts](src/guardrails-core.ts) — Shell policy evaluator
-- [extensions/](extensions/) — Seven modular Pi extension entry points
-- [test/](test/) — `node --test` unit suite (`10/10` passing)
-- [bench/compaction-bench.mjs](bench/compaction-bench.mjs) — Deterministic compaction pruning & recall benchmark
-- [assets/logo.svg](assets/logo.svg) — Geometric Noctalia brand mark

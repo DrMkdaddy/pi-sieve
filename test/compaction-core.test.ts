@@ -3,6 +3,7 @@ import test from "node:test";
 import {
 	applyJevAnswers,
 	buildJevQuestionsForBatch,
+	formatFileOpsXml,
 	normalizeSteps,
 	pruneStepsDeterministic,
 	renderPrunedResult,
@@ -90,8 +91,8 @@ test("deterministic + Jev hybrid retains errors, user constraints, and Jev-rescu
 	assert.ok(q[`essential_${asks[0].step.id}`]);
 
 	const answered = applyJevAnswers(asks, {
-		[`result_${asks[0].step.id}`]: { type: "bool", choice: true, probabilities: { true: 0.91, false: 0.09 } },
-		[`essential_${asks[0].step.id}`]: { type: "bool", choice: true, probabilities: { true: 0.88, false: 0.12 } },
+		[`result_${asks[0].step.id}`]: { type: "bool", probability: 0.91 },
+		[`essential_${asks[0].step.id}`]: { type: "bool", probability: 0.88 },
 	});
 	assert.equal(answered, 1);
 
@@ -103,4 +104,14 @@ test("deterministic + Jev hybrid retains errors, user constraints, and Jev-rescu
 	assert.match(rendered.retainedEvidenceBlock, /x_noctalia_sig/);
 	assert.match(rendered.retainedEvidenceBlock, /token_field assertion failed/);
 	assert.ok(rendered.stats.reductionRatio > 0.5);
+});
+
+test("formatFileOpsXml separates read-only files from modified files deterministically", () => {
+	const xml = formatFileOpsXml({
+		read: new Set(["src/b.ts", "src/a.ts"]),
+		written: new Set(["src/new.ts"]),
+		edited: new Set(["src/b.ts"]),
+	});
+	assert.match(xml, /<read-files>\nsrc\/a\.ts\n<\/read-files>/);
+	assert.match(xml, /<modified-files>\nsrc\/b\.ts\nsrc\/new\.ts\n<\/modified-files>/);
 });

@@ -1,6 +1,6 @@
 {
   "name": "@drmkdaddy/pi-noctalia",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Context-engineering, semantic routing, hybrid Jev compaction, durable tabs, and guardrail suite for the Pi coding agent",
   "license": "MIT",
   "type": "module",
@@ -21,7 +21,9 @@
   ],
   "scripts": {
     "test": "node --test test/*.test.ts",
-    "bench": "node bench/compaction-bench.mjs"
+    "bench": "node bench/compaction-bench.mjs",
+    "bench:live": "node bench/live-jev-bench.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "pi": {
     "extensions": [

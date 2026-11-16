@@ -10,26 +10,23 @@
  *    plus deterministic `Retained Tool Evidence` and `<read-files>` / `<modified-files>`.
  */
 import { uuidv7 } from "@earendil-works/pi-ai";
-import {
-	computeFileLists,
-	convertToLlm,
-	formatFileOperations,
-	SUMMARIZATION_SYSTEM_PROMPT,
-	type ExtensionAPI,
-} from "@earendil-works/pi-coding-agent";
+import { convertToLlm, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
 	applyJevAnswers,
 	buildHybridSynthesisPrompt,
 	buildJudgeTranscriptState,
 	buildJevQuestionsForBatch,
+	formatFileOpsXml,
 	normalizeSteps,
 	pruneStepsDeterministic,
 	renderPrunedResult,
 	resolveRemainingAsks,
+	SYNTHESIS_SYSTEM_PROMPT,
 	type CompactMessageLike,
 	type JevBoolAnswer,
 } from "../src/compaction-core.ts";
 import { COMPACTION_CASCADE, FAST_CASCADE, FREE_CASCADE } from "../src/router-core.ts";
+import { getRuntimeState } from "../src/runtime-state.ts";
 
 const JEV_BATCH_SIZE = 10;
 const JEV_MAX_BATCHES = 3;
@@ -90,11 +87,9 @@ export default function (pi: ExtensionAPI) {
 
 		// Stage 2: Semantic synthesis over the pruned signal transcript via COMPACTION_CASCADE.
 		const avail = ctx.modelRegistry.getAvailable();
-		const routerState = (globalThis as Record<string, unknown>).__noctaliaRouterState as
-			| { providerCooldownUntil?: Map<string, number> }
-			| undefined;
+		const runtimeState = getRuntimeState();
 		const now = Date.now();
-		const isCooling = (provider: string) => (routerState?.providerCooldownUntil?.get(provider) ?? 0) > now;
+		const isCooling = (provider: string) => (runtimeState.providerCooldownUntil.get(provider) ?? 0) > now;
 
 		const orderedCandidates = [...COMPACTION_CASCADE, ...FAST_CASCADE, ...FREE_CASCADE];
 		const seenModels = new Set<string>();
@@ -127,7 +122,7 @@ export default function (pi: ExtensionAPI) {
 				const res = await ctx.modelRegistry.complete(
 					model,
 					{
-						systemPrompt: SUMMARIZATION_SYSTEM_PROMPT,
+						systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
 						messages: [{ role: "user", content: [{ type: "text", text: prompt }], timestamp: Date.now() }],
 					},
 					{
@@ -158,8 +153,7 @@ export default function (pi: ExtensionAPI) {
 		if (!synthesized) return;
 
 		// Stage 3: Append deterministic Retained Evidence (Jev keeps & errors) + Pi fileOps XML.
-		const { readFiles, modifiedFiles } = computeFileLists(preparation.fileOps);
-		const fileOpsBlock = formatFileOperations(readFiles, modifiedFiles);
+		const fileOpsBlock = formatFileOpsXml(preparation.fileOps);
 		const evidenceSection = pruned.retainedEvidenceBlock
 			? `\n\n## Retained Tool Evidence (Verbatim)\n${pruned.retainedEvidenceBlock}`
 			: "";
@@ -167,7 +161,7 @@ export default function (pi: ExtensionAPI) {
 
 		const elapsedMs = Date.now() - started;
 		const prunePct = Math.round(pruned.stats.reductionRatio * 100);
-		(globalThis as Record<string, unknown>).__noctaliaCompactionStats = {
+		runtimeState.lastCompaction = {
 			steps: pruned.stats.totalSteps,
 			prunePct,
 			jevAnswered,

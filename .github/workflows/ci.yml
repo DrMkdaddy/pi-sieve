@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install TypeScript and Pi SDK type definitions
+        run: npm install --no-save typescript @earendil-works/pi-coding-agent @earendil-works/pi-ai @earendil-works/pi-agent-core @earendil-works/pi-tui
+      - name: Typecheck (strict)
+        run: npx tsc --noEmit
+      - name: Run unit tests
+        run: npm test
+      - name: Run deterministic compaction benchmark
+        run: npm run bench

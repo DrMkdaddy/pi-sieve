@@ -7,18 +7,8 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-
-function fmtTokens(n: number): string {
-	if (n < 1000) return `${n}`;
-	if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
-	return `${(n / 1_000_000).toFixed(2)}M`;
-}
-
-function ctxBar(pct: number): string {
-	const width = 6;
-	const filled = Math.max(0, Math.min(width, Math.round((pct / 100) * width)));
-	return `${"█".repeat(filled)}${"░".repeat(width - filled)}`;
-}
+import { getRuntimeState } from "../src/runtime-state.ts";
+import { ctxBar, fmtTokens } from "../src/status-core.ts";
 
 function collectSessionStats(ctx: ExtensionContext) {
 	let input = 0;
@@ -61,13 +51,8 @@ function attachFooter(ctx: ExtensionContext): void {
 			render(width: number): string[] {
 				const s = collectSessionStats(ctx);
 				const selected = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "no-model";
-				const routerState = (globalThis as Record<string, unknown>).__noctaliaRouterState as
-					| {
-							autoThinking?: boolean;
-							lastDispatch?: { provider: string; id: string; thinking: string };
-					  }
-					| undefined;
-				const dispatch = routerState?.lastDispatch;
+				const runtimeState = getRuntimeState();
+				const dispatch = runtimeState.lastDispatch;
 				const routed =
 					selected.startsWith("router/") && dispatch
 						? ` → ${dispatch.provider}/${dispatch.id}`
@@ -76,8 +61,8 @@ function attachFooter(ctx: ExtensionContext): void {
 							: "";
 				const thinking =
 					selected.startsWith("router/") && dispatch
-						? `${dispatch.thinking}${routerState?.autoThinking ? ":auto" : ""}`
-						: (ctx.getThinkingLevel?.() ?? "medium");
+						? `${dispatch.thinking}${runtimeState.autoThinking ? ":auto" : ""}`
+						: (ctx.thinkingLevel ?? "medium");
 
 				const statuses = Array.from(footerData.getExtensionStatuses().values())
 					.filter(Boolean)
@@ -142,30 +127,20 @@ export default function (pi: ExtensionAPI) {
 			const avail = ctx.modelRegistry.getAvailable();
 			const providers = Array.from(new Set(avail.map((m) => m.provider))).sort();
 
-			const routerState = (globalThis as Record<string, unknown>).__noctaliaRouterState as
-				| {
-						autoThinking?: boolean;
-						lastDispatch?: { provider: string; id: string; thinking: string };
-						lastJudgment?: { source: string; kind: string; complexity: string; deepReasoning: boolean };
-						providerCooldownUntil?: Map<string, number>;
-						modelCooldownUntil?: Map<string, number>;
-				  }
-				| undefined;
-			const compactStats = (globalThis as Record<string, unknown>).__noctaliaCompactionStats as
-				| { steps: number; prunePct: number; jevAnswered: number; usedModel: string; elapsedMs: number }
-				| undefined;
+			const runtimeState = getRuntimeState();
+			const compactStats = runtimeState.lastCompaction;
 
 			const now = Date.now();
-			const coolingProviders = Array.from(routerState?.providerCooldownUntil?.entries() ?? [])
+			const coolingProviders = Array.from(runtimeState.providerCooldownUntil.entries())
 				.filter(([, until]) => until > now)
 				.map(([p, until]) => `${p} (${Math.ceil((until - now) / 60000)}m)`);
-			const coolingModels = Array.from(routerState?.modelCooldownUntil?.entries() ?? [])
+			const coolingModels = Array.from(runtimeState.modelCooldownUntil.entries())
 				.filter(([, until]) => until > now)
 				.map(([m, until]) => `${m} (${Math.ceil((until - now) / 60000)}m)`);
-			const dispatched = routerState?.lastDispatch
-				? `${routerState.lastDispatch.provider}/${routerState.lastDispatch.id} [${routerState.lastDispatch.thinking}]`
+			const dispatched = runtimeState.lastDispatch
+				? `${runtimeState.lastDispatch.provider}/${runtimeState.lastDispatch.id} [${runtimeState.lastDispatch.thinking}]`
 				: (s.lastRouteModel ?? "pending first turn");
-			const j = routerState?.lastJudgment;
+			const j = runtimeState.lastJudgment;
 			const judgmentLine = j
 				? `${j.source}: kind=${j.kind}, complexity=${j.complexity}, deep=${j.deepReasoning}`
 				: "none yet";
@@ -174,7 +149,7 @@ export default function (pi: ExtensionAPI) {
 				: "none this session";
 
 			const lines = [
-				`Selected:   ${selected} (floor: ${ctx.getThinkingLevel?.() ?? "low"}, auto-thinking: ${routerState?.autoThinking ? "on" : "off"})`,
+				`Selected:   ${selected} (floor: ${ctx.thinkingLevel ?? "low"}, auto-thinking: ${runtimeState.autoThinking ? "on" : "off"})`,
 				`Dispatched: ${dispatched}`,
 				`Judgment:   ${judgmentLine}`,
 				`Compaction: ${compactLine}`,

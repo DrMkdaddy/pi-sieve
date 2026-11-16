@@ -1,0 +1,47 @@
+{
+  "classifier": "opencode/jev-1.13-free",
+  "routingProbes": [
+    {
+      "label": "trivial-chat",
+      "latencyMs": 308,
+      "costUsd": 0,
+      "kind": "explain",
+      "complexity": "trivial",
+      "deepReasoning": false,
+      "thinking": "low",
+      "matchedExpected": true
+    },
+    {
+      "label": "bounded-implement",
+      "latencyMs": 183,
+      "costUsd": 0,
+      "kind": "implement",
+      "complexity": "standard",
+      "deepReasoning": false,
+      "thinking": "medium",
+      "matchedExpected": true
+    },
+    {
+      "label": "architectural-concurrency",
+      "latencyMs": 710,
+      "costUsd": 0,
+      "kind": "plan",
+      "complexity": "architectural",
+      "deepReasoning": true,
+      "thinking": "xhigh",
+      "matchedExpected": true
+    }
+  ],
+  "compactionProbe": {
+    "latencyMs": 332,
+    "costUsd": 0,
+    "step2SchemaKeep": {
+      "type": "bool",
+      "probability": 0.82
+    },
+    "step3HealthNoiseKeep": {
+      "type": "bool",
+      "probability": 0.06
+    }
+  }
+}

@@ -16,7 +16,6 @@
  *   /tab-rename <name> Rename current session tab
  *   /tabs-toggle       Show/hide tab strip
  */
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -28,6 +27,7 @@ import {
 	type SessionInfo,
 } from "@earendil-works/pi-coding-agent";
 import { MouseRegion, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { cleanTabTitle, shortTabLabel, workspaceTabHash } from "../src/tabs-core.ts";
 
 interface TabItem {
 	path: string;
@@ -54,8 +54,7 @@ interface HitRegion {
 const TABS_CACHE_DIR = join(homedir(), ".pi", "agent", "cache", "tabs");
 
 function stateFileFor(cwd: string): string {
-	const hash = createHash("sha256").update(cwd).digest("hex").slice(0, 16);
-	return join(TABS_CACHE_DIR, `${hash}.json`);
+	return join(TABS_CACHE_DIR, `${workspaceTabHash(cwd)}.json`);
 }
 
 function loadWorkspaceState(cwd: string): WorkspaceTabState {
@@ -81,16 +80,8 @@ function saveWorkspaceState(cwd: string, state: WorkspaceTabState): void {
 	}
 }
 
-function cleanTitle(rawText: string, fallbackId: string): string {
-	const cleaned = rawText.replace(/\s+/g, " ").trim();
-	if (!cleaned) return fallbackId.slice(0, 8);
-	return cleaned.length > 32 ? cleaned.slice(0, 32).trimEnd() : cleaned;
-}
-
-function shortLabel(title: string, maxChars: number): string {
-	if (title.length <= maxChars) return title;
-	return title.slice(0, Math.max(1, maxChars));
-}
+const cleanTitle = cleanTabTitle;
+const shortLabel = shortTabLabel;
 
 function currentHasError(ctx: ExtensionContext): boolean {
 	for (const entry of [...ctx.sessionManager.getBranch()].reverse()) {
